@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Initializr</title>
+    <link rel="stylesheet" href="templates/css/style.css">
+    <link rel="stylesheet" href="templates/css/initializr.css">
+    <link rel="stylesheet" href="templates/css/popup.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="templates/js/script.js" defer></script>
+    <script src="templates/js/popup-script.js" defer></script>
+</head>
+<body>
+<div id="app">
+    <div id="side-left" class="">
+        <div class="side-container">
+
+
+        </div>
+    </div>
+    <div id="main">
+
+        <h1>Project Initializr</h1>
+        <hr class="divider">
+        <div id="metadataScreen" style="display:block;">
+            <form id="projectForm">
+                <div class="colset colset-main">
+
+                    <div class="left">
+                        <div class="col-sticky">
+
+                            <div class="control"><label class="label" for="">Project Metadata</label>
+                                <div class="control-element">
+
+                                    <div class="control control-inline">
+                                        <label for="projectName">Project Name:</label>
+                                        <input type="text" id="projectName" name="projectName" required>
+                                    </div>
+
+                                    <div class="control control-inline">
+                                        <label for="groupId">Group ID:</label>
+                                        <input type="text" id="groupId" name="groupId" required>
+                                    </div>
+
+                                    <div class="control control-inline">
+                                        <label for="artifactId">Artifact ID:</label>
+                                        <input type="text" id="artifactId" name="artifactId" required>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div class="right">
+                        <div class="control">
+                            <div class="dependency-header">
+                                <label>Dependencies:</label>
+                                <button type="button" id="dependenciesBtn" class="button"><span class="button-content"
+                                                                                                tabindex="-1"><span>Add <span
+                                        class="desktop-only">dependencies</span></span></span></button>
+                                <!-- Selected Dependencies Section -->
+                                <div id="selectedDependencies" style="display:none;">
+                                    <h2>Selected Dependencies</h2>
+                                    <div class="selected-wrapper">
+                                        <div class="selected-input">
+                                            <h3>Input Dependencies</h3>
+                                            <ul id="inputDependenciesList"></ul>
+                                        </div>
+                                        <div class="selected-output">
+                                            <h3>Output Dependencies</h3>
+                                            <ul id="outputDependenciesList"></ul>
+                                        </div>
+                                    </div>
+                                    <button id="nextBtn" style="display:none;">Next</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!--<div class="actions">
+                     <div class="actions-container">
+                         <button type="submit" class="button primary"><span class="button-content"
+                                                                            tabindex="-1"><span>Generate</span><span
+                                 class="secondary desktop-only">Ctrl + ⏎</span></span></button>
+                     </div></div>-->
+
+            </form>
+
+        </div>
+
+
+        <!-- Modal for selecting dependencies -->
+
+        <!-- Dependencies Popup -->
+        <div id="dependenciesPopup" class="popup">
+            <div class="popup-content">
+                <div class="popup-header">
+                    <h2>Select Dependencies</h2>
+                    <span class="close">&times;</span>
+                </div>
+                <div class="popup-body">
+                    <div class="dependencies-wrapper">
+                        <div class="dependencies-input">
+                            <h3>Input Dependencies</h3>
+                            <label><input type="checkbox" value="Kafka Consumer"> Kafka Consumer</label><br>
+                            <label><input type="checkbox" value="REST"> REST</label><br>
+                        </div>
+                        <div class="vertical-line"></div>
+                        <div class="dependencies-output">
+                            <h3>Output Dependencies</h3>
+                            <label><input type="checkbox" value="Kafka Producer"> Kafka Producer</label><br>
+                            <label><input type="checkbox" value="Database"> Database</label><br>
+                        </div>
+                    </div>
+                </div>
+                <div class="popup-footer">
+                    <button id="addDependenciesBtn">Add</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 2: Input Dependencies Details -->
+        <div id="inputDetailsScreen" class="screen" style="display:none;">
+            <div class="screen-header">
+                <h2>Input Dependencies Details</h2>
+            </div>
+            <div class="screen-body">
+                <div class="vertical-tabs">
+                    <ul id="inputTabs"></ul>
+                </div>
+                <div class="tab-content">
+                    <div id="kafkaConsumerForm" class="form-content" style="display:none;">
+                        <h3>Kafka Consumer Details</h3>
+                        <label>Consumer ID: <input type="text" id="consumerId"></label><br>
+                        <label>Topic Name: <input type="text" id="kafkaConsumerTopicName"></label><br>
+                    </div>
+                    <div id="restForm" class="form-content" style="display:none;">
+                        <h3>REST Details</h3>
+                        <!-- Add REST specific fields here -->
+                    </div>
+                </div>
+            </div>
+            <div class="screen-footer">
+                <button id="backToDependenciesBtn">Back</button>
+                <button id="nextToOutputBtn">Next</button>
+            </div>
+        </div>
+
+        <!-- Screen 3: Output Dependencies Details -->
+        <div id="outputDetailsScreen" class="screen" style="display:none;">
+            <div class="screen-header">
+                <h2>Output Dependencies Details</h2>
+            </div>
+            <div class="screen-body">
+                <div class="vertical-tabs">
+                    <ul id="outputTabs"></ul>
+                </div>
+                <div class="tab-content">
+                    <div id="kafkaProducerForm" class="form-content" style="display:none;">
+                        <h3>Kafka Producer Details</h3>
+                        <label>Topic Name: <input type="text" id="kafkaProducerTopicName"></label><br>
+                        <label>Message: <textarea id="kafkaProducerMessage"></textarea></label><br>
+                    </div>
+                    <div id="databaseForm" class="form-content" style="display:none;">
+                        <h3>Database Details</h3>
+                        <label>Table Name: <input type="text" id="tableName"></label><br>
+                        <label>Query: <textarea id="databaseQuery"></textarea></label><br>
+                    </div>
+                </div>
+            </div>
+            <div class="screen-footer">
+                <button id="backToInputBtn">Back</button>
+                <button id="submitBtn">Submit</button>
+            </div>
+        </div>
+
+    </div>
+    <div id="result"></div>
+    <div id="side-right" class="">
+        <div class="side-container">
+
+
+        </div>
+    </div>
+</div>
+</body>
+</html>
