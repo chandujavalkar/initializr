@@ -134,3 +134,136 @@
         opacity: 1;
     }
 }
+
+
+
+
+/* Popup overlay */
+#dependenciesPopup {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+}
+
+/* Popup content */
+.popup-content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 50%;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+    animation: popupFadeIn 0.3s ease;
+}
+
+/* Popup header */
+.popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #0073e6;
+    color: #fff;
+    padding: 10px 20px;
+}
+
+.popup-header h2 {
+    margin: 0;
+    font-size: 24px;
+}
+
+/* Close button */
+.popup-header .close {
+    font-size: 24px;
+    cursor: pointer;
+}
+
+/* Popup body */
+.popup-body {
+    padding: 20px;
+}
+
+.dependencies-wrapper {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+/* Input and Output Dependencies sections */
+.dependencies-input, .dependencies-output {
+    width: 45%;
+    background-color: #f9f9f9;
+    padding: 10px;
+    border-radius: 8px;
+    border: 2px solid #0073e6;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.dependencies-input h3, .dependencies-output h3 {
+    text-align: center;
+    color: #0073e6;
+    margin-bottom: 10px;
+}
+
+/* Vertical line separator */
+.vertical-line {
+    width: 2px;
+    background-color: #0073e6;
+    height: auto;
+}
+
+/* Dependency labels */
+label {
+    display: block;
+    padding: 8px;
+    background-color: #e6f7ff;
+    border-radius: 5px;
+    margin-bottom: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+label:hover {
+    background-color: #cceeff;
+}
+
+/* Popup footer */
+.popup-footer {
+    text-align: center;
+    padding: 10px 20px;
+    background-color: #f1f1f1;
+    border-top: 1px solid #ddd;
+}
+
+/* Add button */
+#addDependenciesBtn {
+    padding: 10px 20px;
+    background-color: #28a745;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+}
+
+#addDependenciesBtn:hover {
+    background-color: #218838;
+}
+
+/* Animation for popup */
+@keyframes popupFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
