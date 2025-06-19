@@ -1,0 +1,144 @@
+import org.w3c.dom.*;
+import javax.xml.parsers.*;
+import java.io.*;
+import java.nio.file.*;
+import java.util.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+public class BeanDependencyAnalyzer {
+
+    private static final Map<String, BeanDefinition> allBeans = new HashMap<>();
+    private static final Map<String, BeanInfo> alertMappings = new HashMap<>();
+
+    public static void main(String[] args) throws Exception {
+        File springFolder = new File("WEB-INF/resources/spring");
+        File[] xmlFiles = springFolder.listFiles((dir, name) -> name.endsWith(".xml"));
+
+        if (xmlFiles == null) {
+            System.err.println("No XML files found in the spring folder.");
+            return;
+        }
+
+        // Step 1: Load all bean definitions
+        for (File xmlFile : xmlFiles) {
+            loadBeansFromXml(xmlFile);
+        }
+
+        // Step 2: Process controller beans from bean-core.xml
+        File coreFile = new File("WEB-INF/resources/spring/bean-core.xml");
+        extractAlertMappings(coreFile);
+
+        // Step 3: Write output to JSON
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.writerWithDefaultPrettyPrinter().writeValue(new File("alert-bean-dependencies.json"), alertMappings);
+
+        System.out.println("Dependency analysis completed. Output written to alert-bean-dependencies.json");
+    }
+
+    private static void loadBeansFromXml(File xmlFile) throws Exception {
+        Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(xmlFile);
+        doc.getDocumentElement().normalize();
+
+        NodeList beanList = doc.getElementsByTagName("bean");
+        for (int i = 0; i < beanList.getLength(); i++) {
+            Element bean = (Element) beanList.item(i);
+            String id = bean.getAttribute("id");
+            String className = bean.getAttribute("class");
+            if (!id.isEmpty()) {
+                allBeans.put(id, new BeanDefinition(id, className, bean));
+            }
+        }
+    }
+
+    private static void extractAlertMappings(File coreFile) throws Exception {
+        Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(coreFile);
+        doc.getDocumentElement().normalize();
+
+        NodeList beanList = doc.getElementsByTagName("bean");
+        for (int i = 0; i < beanList.getLength(); i++) {
+            Element controllerBean = (Element) beanList.item(i);
+            NodeList properties = controllerBean.getElementsByTagName("property");
+
+            for (int j = 0; j < properties.getLength(); j++) {
+                Element property = (Element) properties.item(j);
+                if ("messageProcessorMap".equals(property.getAttribute("name"))) {
+                    NodeList maps = property.getElementsByTagName("map");
+                    if (maps.getLength() == 0) continue;
+
+                    Element map = (Element) maps.item(0);
+                    NodeList entries = map.getElementsByTagName("entry");
+
+                    for (int k = 0; k < entries.getLength(); k++) {
+                        Element entry = (Element) entries.item(k);
+                        String alertId = entry.getAttribute("key");
+                        String processorRef = entry.getAttribute("value-ref");
+
+                        BeanDefinition processorBean = allBeans.get(processorRef);
+                        if (processorBean == null) continue;
+
+                        List<String> constructorRefs = getConstructorArgRefs(processorBean.element);
+
+                        BeanInfo info = new BeanInfo();
+                        info.alertId = alertId;
+                        info.processorBean = processorRef;
+                        info.processorClass = processorBean.className;
+
+                        if (constructorRefs.size() > 0) {
+                            BeanDefinition validator = allBeans.get(constructorRefs.get(0));
+                            if (validator != null) {
+                                info.validatorBean = validator.id;
+                                info.validatorClass = validator.className;
+                            }
+                        }
+
+                        if (constructorRefs.size() > 1) {
+                            BeanDefinition ruleHandler = allBeans.get(constructorRefs.get(1));
+                            if (ruleHandler != null) {
+                                info.businessRuleHandlerBean = ruleHandler.id;
+                                info.businessRuleHandlerClass = ruleHandler.className;
+                            }
+                        }
+
+                        alertMappings.put(alertId, info);
+                    }
+                }
+            }
+        }
+    }
+
+    private static List<String> getConstructorArgRefs(Element beanElement) {
+        List<String> refs = new ArrayList<>();
+        NodeList constructorArgs = beanElement.getElementsByTagName("constructor-arg");
+
+        for (int i = 0; i < constructorArgs.getLength(); i++) {
+            Element arg = (Element) constructorArgs.item(i);
+            if (arg.hasAttribute("ref")) {
+                refs.add(arg.getAttribute("ref"));
+            }
+        }
+
+        return refs;
+    }
+
+    static class BeanDefinition {
+        String id;
+        String className;
+        Element element;
+
+        BeanDefinition(String id, String className, Element element) {
+            this.id = id;
+            this.className = className;
+            this.element = element;
+        }
+    }
+
+    static class BeanInfo {
+        public String alertId;
+        public String processorBean;
+        public String processorClass;
+        public String validatorBean;
+        public String validatorClass;
+        public String businessRuleHandlerBean;
+        public String businessRuleHandlerClass;
+    }
+}
