@@ -30,6 +30,25 @@ def extract_requests(items):
             requests.extend(extract_requests(item["item"]))
     return requests
 
+def build_ssl_context(env: str) -> ssl.SSLContext:
+    cert_dir = os.path.join("certs", env)
+    crt_path = os.path.join(cert_dir, "client.crt")
+    key_path = os.path.join(cert_dir, "client.key")
+    pass_path = os.path.join(cert_dir, "passphrase.txt")
+
+    if not os.path.exists(crt_path) or not os.path.exists(key_path):
+        raise FileNotFoundError(f"Missing cert or key file for env: {env}")
+
+    if not os.path.exists(pass_path):
+        raise FileNotFoundError(f"Missing passphrase.txt for env: {env}")
+
+    with open(pass_path) as f:
+        passphrase = f.read().strip()
+
+    context = ssl.create_default_context()
+    context.load_cert_chain(certfile=crt_path, keyfile=key_path, password=passphrase)
+
+    return context
 @app.post("/run")
 def run_postman_request(req: RequestModel):
     all_requests = extract_requests(postman_collection.get("item", []))
