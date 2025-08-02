@@ -3,6 +3,8 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import json
 import re
+from uuid import uuid4
+from datetime import datetime, timezone
 
 app = FastAPI()
 
@@ -14,6 +16,16 @@ class RequestModel(BaseModel):
     env: str
     uri: str
     payload: dict = {}
+
+
+
+def resolve_postman_variables(value: str) -> str:
+    if "{{$guid}}" in value:
+        value = value.replace("{{$guid}}", str(uuid4()))
+    if "{{$isoTimestamp}}" in value:
+        iso_time = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        value = value.replace("{{$isoTimestamp}}", iso_time)
+    return value
 
 def match_uri(uri, path_segments):
     postman_path = "/" + "/".join(path_segments)
@@ -70,7 +82,10 @@ def run_postman_request(req: RequestModel):
 
         method = request.get("method", "GET").upper()
         raw_url = url.get("raw")
-        headers = {h["key"]: h["value"] for h in request.get("header", [])}
+        headers = {
+            h["key"]: resolve_postman_variables(h["value"])
+            for h in request.get("header", [])
+        }
 
         # ✅ Build SSL context for client cert with passphrase
         try:
