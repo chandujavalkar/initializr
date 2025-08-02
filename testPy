@@ -1,7 +1,7 @@
+import urllib3
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import json
-import requests
 import re
 
 app = FastAPI()
@@ -10,101 +10,84 @@ app = FastAPI()
 with open("postman_collection.json") as f:
     postman_collection = json.load(f)
 
-# Request model
 class RequestModel(BaseModel):
     env: str
     uri: str
     payload: dict = {}
 
-# Helper to match uri with path in Postman
 def match_uri(uri, path_segments):
     postman_path = "/" + "/".join(path_segments)
-    # Replace :id with regex match
     regex = re.sub(r":\w+", r"[^/]+", postman_path)
+    print(f"[DEBUG] URI: {uri} | Path: {postman_path} | Regex: ^{regex}$")
     return re.match(f"^{regex}$", uri)
 
-# Extract path variable values if needed (not strictly required for this logic)
-def extract_path_vars(path_segments, actual_uri):
-    uri_parts = actual_uri.strip("/").split("/")
-    path_parts = path_segments
-    return {
-        seg[1:]: val
-        for seg, val in zip(path_parts, uri_parts)
-        if seg.startswith(":")
-    }
+def extract_requests(items):
+    requests = []
+    for item in items:
+        if "request" in item:
+            requests.append(item)
+        elif "item" in item:
+            requests.extend(extract_requests(item["item"]))
+    return requests
 
 @app.post("/run")
 def run_postman_request(req: RequestModel):
-    for item in postman_collection.get("item", []):
+    all_requests = extract_requests(postman_collection.get("item", []))
+
+    for item in all_requests:
         request = item.get("request", {})
         url = request.get("url", {})
         host = url.get("host", [])
         path = url.get("path", [])
-        
+
         if not host or not path:
             continue
 
-        # Match env with host[0]
-        if host[0] != req.env:
+        if req.env not in host[0]:
             continue
 
-        # Match the URI with path list
         if not match_uri(req.uri, path):
             continue
 
-        # Matched request found
         method = request.get("method", "GET").upper()
         raw_url = url.get("raw")
         headers = {h["key"]: h["value"] for h in request.get("header", [])}
 
-        t       # === 🛡️ Load cert paths dynamically ===
-        cert_dir = os.path.join("certs", req.env)
-        crt_path = os.path.join(cert_dir, "client.crt")
-        key_path = os.path.join(cert_dir, "client.key")
-        passphrase_path = os.path.join(cert_dir, "passphrase.txt")
-
-        if not os.path.exists(crt_path) or not os.path.exists(key_path):
-            raise HTTPException(500, detail=f"Missing cert files for env '{req.env}'")
-
-        # Read passphrase if present
-        passphrase = None
-        if os.path.exists(passphrase_path):
-            with open(passphrase_path) as f:
-                passphrase = f.read().strip()
+        # ✅ Build SSL context for client cert with passphrase
+        try:
+            ssl_context = build_ssl_context(req.env)
+            http = urllib3.PoolManager(ssl_context=ssl_context)
+        except Exception as e:
+            raise HTTPException(500, detail=f"Error loading certs: {e}")
 
         try:
-            if passphrase:
-                # 🔒 Use SSLContext to load encrypted key with passphrase
-                context = ssl.create_default_context()
-                context.load_cert_chain(certfile=crt_path, keyfile=key_path, password=passphrase)
+            encoded_body = None
+            if method in ("POST", "PUT", "PATCH") and req.payload:
+                import json as jsonlib
+                encoded_body = jsonlib.dumps(req.payload).encode("utf-8")
+                headers["Content-Type"] = "application/json"
 
-                response = requests.request(
-                    method=method,
-                    url=raw_url,
-                    headers=headers,
-                    json=req.payload if method in ("POST", "PUT", "PATCH") else None,
-                    verify=True,
-                    cert=(crt_path, key_path),  # still needed for some servers
-                    # Extra: you can pass `context` if using urllib3 or lower-level libs
-                )
-            else:
-                # No password needed
-                response = requests.request(
-                    method=method,
-                    url=raw_url,
-                    headers=headers,
-                    json=req.payload if method in ("POST", "PUT", "PATCH") else None,
-                    cert=(crt_path, key_path),
-                    verify=True
-                )
+            r = http.request(
+                method=method,
+                url=raw_url,
+                headers=headers,
+                body=encoded_body,
+                retries=False,
+            )
+
+            # Try to decode JSON response, else return text
+            try:
+                response_data = json.loads(r.data.decode("utf-8"))
+            except:
+                response_data = r.data.decode("utf-8")
 
             return {
-                "status_code": response.status_code,
-                "headers": dict(response.headers),
-                "response": response.json() if "application/json" in response.headers.get("Content-Type", "") else response.text
+                "status_code": r.status,
+                "headers": dict(r.headers),
+                "response": response_data
             }
 
         except Exception as e:
-            raise HTTPException(500, detail=f"Request error: {str(e)}")
+            raise HTTPException(500, detail=f"HTTP request failed: {e}")
 
     raise HTTPException(404, detail="No matching request found in Postman collection")
