@@ -17,7 +17,25 @@ class RequestModel(BaseModel):
     uri: str
     payload: dict = {}
 
+import os
+import json
 
+def load_first_postman_collection():
+    folder = "postman_collections"
+    for fname in os.listdir(folder):
+        if fname.endswith(".json"):
+            full_path = os.path.join(folder, fname)
+            try:
+                with open(full_path) as f:
+                    data = json.load(f)
+                print(f"[INFO] ✅ Loaded Postman collection: {fname}")
+                if "item" not in data:
+                    raise ValueError("Invalid Postman collection: missing 'item' key")
+                print(f"[INFO] Collection contains {len(data['item'])} top-level items.")
+                return data
+            except json.JSONDecodeError as e:
+                print(f"[WARN] Skipping file {fname}: invalid JSON - {e}")
+    raise FileNotFoundError("No valid Postman collection JSON found in postman_collections/ folder.")
 
 def resolve_postman_variables(value: str) -> str:
     if "{{$guid}}" in value:
