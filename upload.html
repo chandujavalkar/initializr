@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Multipart Upload</title>
+</head>
+<body>
+
+<input type="file" id="fileInput" />
+<button onclick="upload()">Upload</button>
+
+<br><br>
+<progress id="progressBar" value="0" max="100"></progress>
+<span id="status"></span>
+
+<script>
+function upload() {
+    const file = document.getElementById("fileInput").files[0];
+    if (!file) {
+        alert("Select a file");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.onprogress = function (event) {
+        if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            document.getElementById("progressBar").value = percent;
+            document.getElementById("status").innerText =
+                percent + "% uploading...";
+        }
+    };
+
+    xhr.onload = function () {
+        if (xhr.status === 200) {
+            document.getElementById("status").innerText = "Upload completed";
+        } else {
+            document.getElementById("status").innerText = "Upload failed";
+        }
+    };
+
+    xhr.open("POST", "/files/upload");
+    xhr.send(formData);
+}
+</script>
+
+</body>
+</html>
