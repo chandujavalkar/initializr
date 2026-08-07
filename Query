@@ -1,70 +1,103 @@
+/*===============================================================
+  USER_ACCOUNT_PARAMETER_UNLOCK
+  Source : Ab Initio Graph
+===============================================================*/
+
+WITH T_ACCOUNT_DEDUP AS
+(
+    SELECT *
+    FROM
+    (
+        SELECT  A.*,
+                ROW_NUMBER() OVER
+                (
+                    PARTITION BY A.ACCOUNT_NO
+                    ORDER BY A.ACCOUNT_ID
+                ) RN
+        FROM T_ACCOUNT A
+    )
+    WHERE RN = 1
+)
+
 SELECT
-    ua.ACCOUNT_NO,
-    ua.COMPANY_ID,
-    ua.HOGAN_PRODUCT_CD,
-    ua.SUBPRODUCT_CODE,
-    ua.ACCOUNT_ID,
 
-    COUNT(DISTINCT ua.ACCOUNT_ID)
-        OVER (PARTITION BY ua.USER_ID) AS DISTINCT_ACCOUNT_ID_COUNT,
+       /*-------------------------------------------------------
+         Account Information
+       -------------------------------------------------------*/
+       A.ACCOUNT_NO,
+       A.COMPANY_ID,
+       A.HOGAN_PRODUCT_CD,
+       A.SUBPRODUCT_CODE,
+       A.ACCOUNT_ID,
 
-    ua.ACCOUNT_STATUS,
+       COUNT(DISTINCT A.ACCOUNT_ID)
+           OVER
+           (
+               PARTITION BY UA.USER_ID
+           )  AS DISTINCT_ACCOUNT_ID_COUNT,
 
-    uas.USER_ID,
+       UA.USER_ACCOUNT_STATUS,
 
-    uas.MESSAGE_TYPE_ID,
+       /*-------------------------------------------------------
+         User Information
+       -------------------------------------------------------*/
+       U.USER_ID,
+       UAS.MESSAGE_TYPE_ID,
+       UAS.ACTIVE_IND                    AS SUBSCRIPTION_IND,
 
-    CASE
-        WHEN uas.ACTIVE_IND = 'Y' THEN 'Y'
-        ELSE 'N'
-    END AS SUBSCRIPTION_IND,
+       UA.PMC_IND,
+       UA.PRODUCT_CODE,
+       UA.PREFERRED_LANGUAGE,
 
-    ua.PMC_IND,
+       U.XA_ID,
+       U.ECN,
 
-    ua.PRODUCT_CODE,
+       /*-------------------------------------------------------
+         Subscription Parameters
+       -------------------------------------------------------*/
+       UASP.SUBSCRIPTION_PARAMETER_ID,
+       UASP.PARAMETER_VALUE,
 
-    ua.PREFERRED_LANGUAGE,
+       UASP.CREATOR_ID,
+       UASP.CREATE_DATE,
+       UASP.MODIFIER_ID,
+       UASP.MODIFY_DATE,
 
-    ua.XA_ID,
+       SP.PARAMETER_NAME,
+       SP.PARAMETER_DESC,
+       SP.PARAMETER_DATATYPE
 
-    ua.ECN,
+FROM T_USER U
 
-    uasp.SUBSCRIPTION_PARAMETER_ID,
+INNER JOIN T_USER_ACCOUNT UA
+ON U.USER_ID = UA.USER_ID
 
-    uasp.PARAMETER_VALUE,
+INNER JOIN T_ACCOUNT_DEDUP A
+ON UA.ACCOUNT_ID = A.ACCOUNT_ID
 
-    uasp.CREATOR_ID,
+INNER JOIN T_USER_SUB US
+ON US.USER_ID = U.USER_ID
 
-    uasp.CREATE_DATE,
+INNER JOIN T_USER_ACCOUNT_SUB UAS
+ON UAS.USER_ID = UA.USER_ID
+AND UAS.ACCOUNT_ID = UA.ACCOUNT_ID
+AND UAS.MESSAGE_TYPE_ID = US.MESSAGE_TYPE_ID
 
-    uasp.MODIFIER_ID,
+INNER JOIN T_MESSAGE_TYPE MT
+ON MT.MESSAGE_TYPE_ID = UAS.MESSAGE_TYPE_ID
 
-    uasp.MODIFY_DATE,
+INNER JOIN T_USER_ACCOUNT_SUB_PARAMETER UASP
+ON UASP.USER_ID = UAS.USER_ID
+AND UASP.ACCOUNT_ID = UAS.ACCOUNT_ID
+AND UASP.MESSAGE_TYPE_ID = UAS.MESSAGE_TYPE_ID
 
-    sp.PARAMETER_NAME,
+INNER JOIN T_SUB_PARAMETER SP
+ON SP.SUBSCRIPTION_PARAMETER_ID =
+       UASP.SUBSCRIPTION_PARAMETER_ID
 
-    sp.PARAMETER_DESC,
+ORDER BY
 
-    sp.PARAMETER_DATATYPE
-
-FROM ANG.T_USER_ACCOUNT ua
-
-JOIN ANG.T_USER_ACCOUNT_SUB uas
-    ON ua.ACCOUNT_ID = uas.ACCOUNT_ID
-   AND ua.USER_ID    = uas.USER_ID
-
-JOIN ANG.T_MESSAGE_TYPE mt
-    ON mt.MESSAGE_TYPE_ID = uas.MESSAGE_TYPE_ID
-
-LEFT JOIN ANG.T_USER_ACCOUNT_SUB_PARAMETER uasp
-    ON uasp.ACCOUNT_ID      = uas.ACCOUNT_ID
-   AND uasp.USER_ID         = uas.USER_ID
-   AND uasp.MESSAGE_TYPE_ID = uas.MESSAGE_TYPE_ID
-
-LEFT JOIN ANG.T_SUB_PARAMETER sp
-    ON sp.SUBSCRIPTION_PARAMETER_ID =
-       uasp.SUBSCRIPTION_PARAMETER_ID
-
-WHERE
-      ua.ACCOUNT_STATUS = 'ACTIVE'
-  AND uas.ACTIVE_IND = 'Y';
+       U.USER_ID,
+       A.ACCOUNT_NO,
+       UAS.MESSAGE_TYPE_ID,
+       UASP.SUBSCRIPTION_PARAMETER_ID;
